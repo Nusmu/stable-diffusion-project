@@ -13,7 +13,7 @@ from pathlib import Path
 
 def generate_image(
     prompt: str,
-    model: str = "stabilityai/stable-diffusion-xl-base-1.0",
+    model: str = "black-forest-labs/FLUX.1-schnell",
     negative_prompt: str = "",
     token: str = None,
 ):
@@ -26,7 +26,8 @@ def generate_image(
     headers = {"Authorization": f"Bearer {token}"}
 
     payload = {"inputs": prompt}
-    if negative_prompt:
+    if negative_prompt and "FLUX" not in model.upper():
+        # FLUX doesn't support negative prompts
         payload["parameters"] = {"negative_prompt": negative_prompt}
 
     print(f"Sending request to {model}...")
@@ -47,8 +48,8 @@ def main():
     parser.add_argument("-o", "--output", type=str, default="output_api.png",
                         help="Output filename")
     parser.add_argument("-m", "--model", type=str,
-                        default="stabilityai/stable-diffusion-xl-base-1.0",
-                        help="Model ID")
+                        default="black-forest-labs/FLUX.1-schnell",
+                        help="Model ID (FLUX.1-schnell=fast, FLUX.1-dev=quality)")
     parser.add_argument("--token", type=str, default=None,
                         help="HuggingFace API token (or set HF_TOKEN env var)")
 
