@@ -77,7 +77,7 @@ def main():
     parser.add_argument("prompt", type=str, help="Text prompt for image generation")
     parser.add_argument("-n", "--negative", type=str, default="blurry, bad quality, distorted",
                         help="Negative prompt (things to avoid)")
-    parser.add_argument("-o", "--output", type=str, default="output.png",
+    parser.add_argument("-o", "--output", type=str, default="/app/output/output.png",
                         help="Output filename")
     parser.add_argument("-m", "--model", type=str,
                         default="runwayml/stable-diffusion-v1-5",

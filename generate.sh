@@ -51,10 +51,10 @@ fi
 # Run the appropriate service
 if [[ "$USE_SDXL" == true ]]; then
     echo "Using SDXL + Refiner (best quality)..."
-    docker compose run --rm sdxl "$@" -o "/app/output/$(basename "${2:-output_xl.png}")"
+    docker compose run --rm sdxl "$@"
 else
     echo "Using Stable Diffusion 1.5..."
-    docker compose run --rm sd "$@" -o "/app/output/$(basename "${2:-output.png}")"
+    docker compose run --rm sd "$@"
 fi
 
 echo ""
