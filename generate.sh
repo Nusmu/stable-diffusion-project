@@ -11,10 +11,14 @@ cd "$SCRIPT_DIR"
 # Create output directory if it doesn't exist
 mkdir -p output
 
-# Check for --xl flag
+# Check for mode flags
 USE_SDXL=false
+USE_API=false
 if [[ "$1" == "--xl" ]]; then
     USE_SDXL=true
+    shift
+elif [[ "$1" == "--api" ]]; then
+    USE_API=true
     shift
 fi
 
@@ -23,8 +27,9 @@ if [[ $# -eq 0 ]] || [[ "$1" == "-h" ]] || [[ "$1" == "--help" ]]; then
     echo "Stable Diffusion Image Generator"
     echo ""
     echo "Usage:"
-    echo "  ./generate.sh \"your prompt\" [options]        # SD 1.5 (512x512)"
-    echo "  ./generate.sh --xl \"your prompt\" [options]   # SDXL + Refiner (1024x1024, best quality)"
+    echo "  ./generate.sh \"your prompt\" [options]        # SD 1.5 (512x512, local GPU)"
+    echo "  ./generate.sh --xl \"your prompt\" [options]   # SDXL (1024x1024, local GPU)"
+    echo "  ./generate.sh --api \"your prompt\" [options]  # SDXL via HuggingFace API (no GPU needed)"
     echo ""
     echo "Options:"
     echo "  -o, --output FILE    Output filename (default: output.png)"
@@ -49,8 +54,11 @@ if ! docker images | grep -q "stable-diffusion.*latest"; then
 fi
 
 # Run the appropriate service
-if [[ "$USE_SDXL" == true ]]; then
-    echo "Using SDXL + Refiner (best quality)..."
+if [[ "$USE_API" == true ]]; then
+    echo "Using HuggingFace Inference API (no local GPU)..."
+    docker compose run --rm api "$@" -o "/app/output/output_api.png"
+elif [[ "$USE_SDXL" == true ]]; then
+    echo "Using SDXL (local GPU)..."
     docker compose run --rm sdxl "$@"
 else
     echo "Using Stable Diffusion 1.5..."

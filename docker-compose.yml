@@ -52,6 +52,19 @@ services:
     stdin_open: true
     tty: true
 
+  # API-based generation (no GPU needed)
+  api:
+    build: .
+    image: stable-diffusion:latest
+    environment:
+      - HF_TOKEN=${HF_TOKEN}
+    volumes:
+      - ./generate_api.py:/app/generate_api.py:ro
+      - ./output:/app/output
+    entrypoint: ["python3", "generate_api.py"]
+    stdin_open: true
+    tty: true
+
 volumes:
   sd-models:
     name: stable-diffusion-models
