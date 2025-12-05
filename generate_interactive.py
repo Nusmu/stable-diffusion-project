@@ -131,10 +131,11 @@ class ImageGenerator:
                 self.save_copy(arg)
             elif cmd == 'model':
                 if arg:
-                    if arg.lower() == 'schnell':
+                    if arg.lower() in ('schnell', 'fast'):
                         self.model = "black-forest-labs/FLUX.1-schnell"
                     elif arg.lower() == 'dev':
-                        self.model = "black-forest-labs/FLUX.1-dev"
+                        print("⚠️  FLUX.1-dev requires paid API. Using schnell instead.")
+                        self.model = "black-forest-labs/FLUX.1-schnell"
                     else:
                         self.model = arg
                 print(f"🤖 Model: {self.model}")
