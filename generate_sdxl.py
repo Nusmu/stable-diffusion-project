@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
 """
-SDXL (Stable Diffusion XL) Image Generator
+SDXL-Turbo Image Generator
 
-Higher quality images with SDXL models.
-Requires more VRAM (~12GB recommended).
+Fast, high-quality images with SDXL-Turbo (1-4 steps).
+Requires ~8GB VRAM.
 """
 
 import argparse
 from pathlib import Path
 
 import torch
-from diffusers import StableDiffusionXLPipeline, DPMSolverMultistepScheduler
+from diffusers import AutoPipelineForText2Image
 
 
 def get_device():
@@ -23,15 +23,13 @@ def get_device():
 
 
 def load_pipeline(model_id: str, device: str):
-    """Load the SDXL pipeline."""
-    pipe = StableDiffusionXLPipeline.from_pretrained(
+    """Load the SDXL-Turbo pipeline."""
+    pipe = AutoPipelineForText2Image.from_pretrained(
         model_id,
         torch_dtype=torch.float16 if device != "cpu" else torch.float32,
-        use_safetensors=True,
         variant="fp16" if device != "cpu" else None,
     )
 
-    pipe.scheduler = DPMSolverMultistepScheduler.from_config(pipe.scheduler.config)
     pipe = pipe.to(device)
 
     if device == "cuda":
@@ -44,10 +42,10 @@ def generate_image(
     pipe,
     prompt: str,
     negative_prompt: str = "",
-    width: int = 1024,
-    height: int = 1024,
-    steps: int = 30,
-    guidance_scale: float = 7.0,
+    width: int = 512,
+    height: int = 512,
+    steps: int = 4,
+    guidance_scale: float = 0.0,
     seed: int = None,
 ):
     """Generate an image from a text prompt."""
@@ -57,7 +55,7 @@ def generate_image(
 
     result = pipe(
         prompt=prompt,
-        negative_prompt=negative_prompt,
+        negative_prompt=negative_prompt if guidance_scale > 0 else None,
         width=width,
         height=height,
         num_inference_steps=steps,
@@ -69,20 +67,20 @@ def generate_image(
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Generate images with SDXL")
+    parser = argparse.ArgumentParser(description="Generate images with SDXL-Turbo")
     parser.add_argument("prompt", type=str, help="Text prompt for image generation")
     parser.add_argument("-n", "--negative", type=str,
-                        default="blurry, bad quality, distorted, ugly, deformed",
-                        help="Negative prompt")
+                        default="",
+                        help="Negative prompt (only used with guidance > 0)")
     parser.add_argument("-o", "--output", type=str, default="output_xl.png",
                         help="Output filename")
     parser.add_argument("-m", "--model", type=str,
-                        default="stabilityai/stable-diffusion-xl-base-1.0",
+                        default="stabilityai/sdxl-turbo",
                         help="SDXL model ID")
-    parser.add_argument("-W", "--width", type=int, default=1024, help="Image width")
-    parser.add_argument("-H", "--height", type=int, default=1024, help="Image height")
-    parser.add_argument("-s", "--steps", type=int, default=30, help="Inference steps")
-    parser.add_argument("-g", "--guidance", type=float, default=7.0, help="Guidance scale")
+    parser.add_argument("-W", "--width", type=int, default=512, help="Image width")
+    parser.add_argument("-H", "--height", type=int, default=512, help="Image height")
+    parser.add_argument("-s", "--steps", type=int, default=4, help="Inference steps (1-4 for turbo)")
+    parser.add_argument("-g", "--guidance", type=float, default=0.0, help="Guidance scale (0.0 for turbo)")
     parser.add_argument("--seed", type=int, default=None, help="Random seed")
 
     args = parser.parse_args()

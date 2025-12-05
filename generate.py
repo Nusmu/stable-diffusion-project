@@ -80,7 +80,7 @@ def main():
     parser.add_argument("-o", "--output", type=str, default="output.png",
                         help="Output filename")
     parser.add_argument("-m", "--model", type=str,
-                        default="stabilityai/stable-diffusion-2-1-base",
+                        default="runwayml/stable-diffusion-v1-5",
                         help="Model ID from Hugging Face")
     parser.add_argument("-W", "--width", type=int, default=512, help="Image width")
     parser.add_argument("-H", "--height", type=int, default=512, help="Image height")

@@ -22,7 +22,7 @@ services:
     stdin_open: true
     tty: true
 
-  # SDXL variant (higher quality, needs ~12GB VRAM)
+  # SDXL-Turbo variant (fast, needs ~8GB VRAM)
   sdxl:
     build: .
     image: stable-diffusion:latest
