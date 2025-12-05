@@ -22,7 +22,7 @@ def generate_image(
     if not token:
         raise ValueError("HF_TOKEN environment variable or --token required")
 
-    API_URL = f"https://api-inference.huggingface.co/models/{model}"
+    API_URL = f"https://router.huggingface.co/hf-inference/models/{model}"
     headers = {"Authorization": f"Bearer {token}"}
 
     payload = {"inputs": prompt}
