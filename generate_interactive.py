@@ -178,7 +178,12 @@ def main():
         print("❌ HF_TOKEN environment variable required")
         sys.exit(1)
 
-    output = os.environ.get("OUTPUT_PATH", "/app/output/current.png")
+    # Use local output directory if not in Docker
+    default_output = "/app/output/current.png" if os.path.exists("/app") else "output/current.png"
+    output = os.environ.get("OUTPUT_PATH", default_output)
+
+    # Ensure output directory exists
+    Path(output).parent.mkdir(parents=True, exist_ok=True)
 
     generator = ImageGenerator(token, output)
 
