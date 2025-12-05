@@ -24,21 +24,26 @@ def get_device():
 
 def load_pipelines(base_model: str, refiner_model: str, device: str, use_refiner: bool = True):
     """Load the SDXL base and optionally refiner pipelines."""
+    import gc
+
+    # Clear any leftover memory
+    if device == "cuda":
+        torch.cuda.empty_cache()
+        gc.collect()
+
     dtype = torch.float16 if device != "cpu" else torch.float32
 
-    # Load base model
+    # Load base model directly to device
     base = StableDiffusionXLPipeline.from_pretrained(
         base_model,
         torch_dtype=dtype,
         use_safetensors=True,
         variant="fp16" if device != "cpu" else None,
-    )
-    base.scheduler = DPMSolverMultistepScheduler.from_config(base.scheduler.config)
-    base = base.to(device)
+    ).to(device)
 
-    if device == "cuda":
-        base.enable_attention_slicing()
-        base.enable_vae_slicing()
+    base.scheduler = DPMSolverMultistepScheduler.from_config(base.scheduler.config)
+    base.enable_attention_slicing()
+    base.enable_vae_slicing()
 
     refiner = None
     if use_refiner:
@@ -51,12 +56,10 @@ def load_pipelines(base_model: str, refiner_model: str, device: str, use_refiner
             text_encoder=base.text_encoder,
             text_encoder_2=base.text_encoder_2,
             vae=base.vae,
-        )
-        refiner = refiner.to(device)
+        ).to(device)
 
-        if device == "cuda":
-            refiner.enable_attention_slicing()
-            refiner.enable_vae_slicing()
+        refiner.enable_attention_slicing()
+        refiner.enable_vae_slicing()
 
     return base, refiner
 
