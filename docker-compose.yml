@@ -65,6 +65,20 @@ services:
     stdin_open: true
     tty: true
 
+  # Interactive mode (conversational)
+  interactive:
+    build: .
+    image: stable-diffusion:latest
+    environment:
+      - HF_TOKEN=${HF_TOKEN}
+      - OUTPUT_PATH=/app/output/current.png
+    volumes:
+      - ./generate_interactive.py:/app/generate_interactive.py:ro
+      - ./output:/app/output
+    entrypoint: ["python3", "-u", "generate_interactive.py"]
+    stdin_open: true
+    tty: true
+
 volumes:
   sd-models:
     name: stable-diffusion-models

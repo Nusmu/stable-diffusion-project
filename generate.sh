@@ -14,22 +14,27 @@ mkdir -p output
 # Check for mode flags
 USE_SDXL=false
 USE_API=false
+USE_INTERACTIVE=false
 if [[ "$1" == "--xl" ]]; then
     USE_SDXL=true
     shift
 elif [[ "$1" == "--api" ]]; then
     USE_API=true
     shift
+elif [[ "$1" == "-i" ]] || [[ "$1" == "--interactive" ]]; then
+    USE_INTERACTIVE=true
+    shift
 fi
 
-# Show help if no arguments
-if [[ $# -eq 0 ]] || [[ "$1" == "-h" ]] || [[ "$1" == "--help" ]]; then
+# Show help if no arguments (unless interactive mode)
+if [[ "$USE_INTERACTIVE" == false ]] && { [[ $# -eq 0 ]] || [[ "$1" == "-h" ]] || [[ "$1" == "--help" ]]; }; then
     echo "Stable Diffusion Image Generator"
     echo ""
     echo "Usage:"
     echo "  ./generate.sh \"your prompt\" [options]        # SD 1.5 (512x512, local GPU)"
     echo "  ./generate.sh --xl \"your prompt\" [options]   # SDXL (1024x1024, local GPU)"
-    echo "  ./generate.sh --api \"your prompt\" [options]  # SDXL via HuggingFace API (no GPU needed)"
+    echo "  ./generate.sh --api \"your prompt\" [options]  # FLUX via HuggingFace API (no GPU)"
+    echo "  ./generate.sh -i                              # Interactive mode (conversational)"
     echo ""
     echo "Options:"
     echo "  -o, --output FILE    Output filename (default: output.png)"
@@ -54,7 +59,12 @@ if ! docker images | grep -q "stable-diffusion.*latest"; then
 fi
 
 # Run the appropriate service
-if [[ "$USE_API" == true ]]; then
+if [[ "$USE_INTERACTIVE" == true ]]; then
+    echo "Starting interactive mode..."
+    echo "Type /help for commands, or just enter a prompt"
+    echo ""
+    docker compose run --rm interactive
+elif [[ "$USE_API" == true ]]; then
     echo "Using HuggingFace Inference API (no local GPU)..."
     docker compose run --rm api "$@" -o "/app/output/output_api.png"
 elif [[ "$USE_SDXL" == true ]]; then
