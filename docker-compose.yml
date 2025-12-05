@@ -8,6 +8,9 @@ services:
       - NVIDIA_DRIVER_CAPABILITIES=compute,utility
       - HF_TOKEN=${HF_TOKEN}
     volumes:
+      # Mount code for live changes
+      - ./generate.py:/app/generate.py:ro
+      - ./generate_sdxl.py:/app/generate_sdxl.py:ro
       # Output images to host
       - ./output:/app/output
       # Cache models on host to avoid re-downloading
@@ -33,6 +36,9 @@ services:
       - NVIDIA_DRIVER_CAPABILITIES=compute,utility
       - HF_TOKEN=${HF_TOKEN}
     volumes:
+      # Mount code for live changes
+      - ./generate.py:/app/generate.py:ro
+      - ./generate_sdxl.py:/app/generate_sdxl.py:ro
       - ./output:/app/output
       - sd-models:/root/.cache/huggingface
     deploy:

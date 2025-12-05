@@ -34,26 +34,29 @@ def load_pipelines(base_model: str, refiner_model: str, device: str, use_refiner
         variant="fp16" if device != "cpu" else None,
     )
     base.scheduler = DPMSolverMultistepScheduler.from_config(base.scheduler.config)
+    base = base.to(device)
 
     if device == "cuda":
-        # Use CPU offload to fit both models in VRAM
-        base.enable_model_cpu_offload()
-    else:
-        base = base.to(device)
+        base.enable_attention_slicing()
+        base.enable_vae_slicing()
 
     refiner = None
     if use_refiner:
+        # Share components with base to save ~3GB VRAM
         refiner = StableDiffusionXLImg2ImgPipeline.from_pretrained(
             refiner_model,
             torch_dtype=dtype,
             use_safetensors=True,
             variant="fp16" if device != "cpu" else None,
+            text_encoder=base.text_encoder,
+            text_encoder_2=base.text_encoder_2,
+            vae=base.vae,
         )
+        refiner = refiner.to(device)
 
         if device == "cuda":
-            refiner.enable_model_cpu_offload()
-        else:
-            refiner = refiner.to(device)
+            refiner.enable_attention_slicing()
+            refiner.enable_vae_slicing()
 
     return base, refiner
 
@@ -73,8 +76,7 @@ def generate_image(
     """Generate an image using base + refiner pipeline."""
     generator = None
     if seed is not None:
-        # Use CPU generator for compatibility with CPU offload
-        generator = torch.Generator("cpu").manual_seed(seed)
+        generator = torch.Generator("cuda").manual_seed(seed)
 
     # Calculate denoising split for base/refiner
     high_noise_frac = 0.8  # Base handles 80% of denoising
