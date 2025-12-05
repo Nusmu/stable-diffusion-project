@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
 """
-SDXL-Turbo Image Generator
+SDXL Image Generator with Refiner
 
-Fast, high-quality images with SDXL-Turbo (1-4 steps).
-Requires ~8GB VRAM.
+Highest quality images using SDXL base + refiner pipeline.
+Requires ~12-14GB VRAM (16GB recommended).
 """
 
 import argparse
 from pathlib import Path
 
 import torch
-from diffusers import AutoPipelineForText2Image
+from diffusers import StableDiffusionXLPipeline, StableDiffusionXLImg2ImgPipeline, DPMSolverMultistepScheduler
 
 
 def get_device():
@@ -22,65 +22,120 @@ def get_device():
     return "cpu"
 
 
-def load_pipeline(model_id: str, device: str):
-    """Load the SDXL-Turbo pipeline."""
-    pipe = AutoPipelineForText2Image.from_pretrained(
-        model_id,
-        torch_dtype=torch.float16 if device != "cpu" else torch.float32,
+def load_pipelines(base_model: str, refiner_model: str, device: str, use_refiner: bool = True):
+    """Load the SDXL base and optionally refiner pipelines."""
+    dtype = torch.float16 if device != "cpu" else torch.float32
+
+    # Load base model
+    base = StableDiffusionXLPipeline.from_pretrained(
+        base_model,
+        torch_dtype=dtype,
+        use_safetensors=True,
         variant="fp16" if device != "cpu" else None,
     )
-
-    pipe = pipe.to(device)
+    base.scheduler = DPMSolverMultistepScheduler.from_config(base.scheduler.config)
+    base = base.to(device)
 
     if device == "cuda":
-        pipe.enable_attention_slicing()
+        base.enable_attention_slicing()
 
-    return pipe
+    refiner = None
+    if use_refiner:
+        refiner = StableDiffusionXLImg2ImgPipeline.from_pretrained(
+            refiner_model,
+            torch_dtype=dtype,
+            use_safetensors=True,
+            variant="fp16" if device != "cpu" else None,
+        )
+        refiner = refiner.to(device)
+
+        if device == "cuda":
+            refiner.enable_attention_slicing()
+
+    return base, refiner
 
 
 def generate_image(
-    pipe,
+    base,
+    refiner,
     prompt: str,
     negative_prompt: str = "",
-    width: int = 512,
-    height: int = 512,
-    steps: int = 4,
-    guidance_scale: float = 0.0,
+    width: int = 1024,
+    height: int = 1024,
+    steps: int = 40,
+    refiner_steps: int = 20,
+    guidance_scale: float = 7.5,
     seed: int = None,
 ):
-    """Generate an image from a text prompt."""
+    """Generate an image using base + refiner pipeline."""
     generator = None
     if seed is not None:
-        generator = torch.Generator(device=pipe.device).manual_seed(seed)
+        generator = torch.Generator(device=base.device).manual_seed(seed)
 
-    result = pipe(
-        prompt=prompt,
-        negative_prompt=negative_prompt if guidance_scale > 0 else None,
-        width=width,
-        height=height,
-        num_inference_steps=steps,
-        guidance_scale=guidance_scale,
-        generator=generator,
-    )
+    # Calculate denoising split for base/refiner
+    high_noise_frac = 0.8  # Base handles 80% of denoising
 
-    return result.images[0]
+    # Generate with base model
+    if refiner is not None:
+        # Two-stage: base outputs latents, refiner finishes
+        image = base(
+            prompt=prompt,
+            negative_prompt=negative_prompt,
+            width=width,
+            height=height,
+            num_inference_steps=steps,
+            guidance_scale=guidance_scale,
+            generator=generator,
+            denoising_end=high_noise_frac,
+            output_type="latent",
+        ).images
+
+        # Refine the image
+        image = refiner(
+            prompt=prompt,
+            negative_prompt=negative_prompt,
+            image=image,
+            num_inference_steps=refiner_steps,
+            guidance_scale=guidance_scale,
+            generator=generator,
+            denoising_start=high_noise_frac,
+        ).images[0]
+    else:
+        # Single-stage: base only
+        image = base(
+            prompt=prompt,
+            negative_prompt=negative_prompt,
+            width=width,
+            height=height,
+            num_inference_steps=steps,
+            guidance_scale=guidance_scale,
+            generator=generator,
+        ).images[0]
+
+    return image
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Generate images with SDXL-Turbo")
+    parser = argparse.ArgumentParser(description="Generate images with SDXL + Refiner")
     parser.add_argument("prompt", type=str, help="Text prompt for image generation")
     parser.add_argument("-n", "--negative", type=str,
-                        default="",
-                        help="Negative prompt (only used with guidance > 0)")
+                        default="blurry, bad quality, distorted, ugly, deformed, low resolution, pixelated",
+                        help="Negative prompt")
     parser.add_argument("-o", "--output", type=str, default="output_xl.png",
                         help="Output filename")
     parser.add_argument("-m", "--model", type=str,
-                        default="stabilityai/sdxl-turbo",
-                        help="SDXL model ID")
-    parser.add_argument("-W", "--width", type=int, default=512, help="Image width")
-    parser.add_argument("-H", "--height", type=int, default=512, help="Image height")
-    parser.add_argument("-s", "--steps", type=int, default=4, help="Inference steps (1-4 for turbo)")
-    parser.add_argument("-g", "--guidance", type=float, default=0.0, help="Guidance scale (0.0 for turbo)")
+                        default="stabilityai/stable-diffusion-xl-base-1.0",
+                        help="SDXL base model ID")
+    parser.add_argument("--refiner", type=str,
+                        default="stabilityai/stable-diffusion-xl-refiner-1.0",
+                        help="SDXL refiner model ID")
+    parser.add_argument("--no-refiner", action="store_true",
+                        help="Disable refiner (faster, less quality)")
+    parser.add_argument("-W", "--width", type=int, default=1024, help="Image width")
+    parser.add_argument("-H", "--height", type=int, default=1024, help="Image height")
+    parser.add_argument("-s", "--steps", type=int, default=40, help="Base inference steps")
+    parser.add_argument("--refiner-steps", type=int, default=20, help="Refiner inference steps")
+    parser.add_argument("-g", "--guidance", type=float, default=7.5, help="Guidance scale")
     parser.add_argument("--seed", type=int, default=None, help="Random seed")
 
     args = parser.parse_args()
@@ -88,17 +143,23 @@ def main():
     device = get_device()
     print(f"Using device: {device}")
 
-    print(f"Loading model: {args.model}")
-    pipe = load_pipeline(args.model, device)
+    use_refiner = not args.no_refiner
+    print(f"Loading SDXL base: {args.model}")
+    if use_refiner:
+        print(f"Loading SDXL refiner: {args.refiner}")
+
+    base, refiner = load_pipelines(args.model, args.refiner, device, use_refiner)
 
     print(f"Generating image for prompt: '{args.prompt}'")
     image = generate_image(
-        pipe,
+        base,
+        refiner,
         prompt=args.prompt,
         negative_prompt=args.negative,
         width=args.width,
         height=args.height,
         steps=args.steps,
+        refiner_steps=args.refiner_steps,
         guidance_scale=args.guidance,
         seed=args.seed,
     )

@@ -24,7 +24,7 @@ if [[ $# -eq 0 ]] || [[ "$1" == "-h" ]] || [[ "$1" == "--help" ]]; then
     echo ""
     echo "Usage:"
     echo "  ./generate.sh \"your prompt\" [options]        # SD 1.5 (512x512)"
-    echo "  ./generate.sh --xl \"your prompt\" [options]   # SDXL-Turbo (fast, 512x512)"
+    echo "  ./generate.sh --xl \"your prompt\" [options]   # SDXL + Refiner (1024x1024, best quality)"
     echo ""
     echo "Options:"
     echo "  -o, --output FILE    Output filename (default: output.png)"
@@ -38,7 +38,7 @@ if [[ $# -eq 0 ]] || [[ "$1" == "-h" ]] || [[ "$1" == "--help" ]]; then
     echo "Examples:"
     echo "  ./generate.sh \"a cat astronaut on mars\""
     echo "  ./generate.sh \"sunset over mountains\" -o sunset.png"
-    echo "  ./generate.sh --xl \"photorealistic portrait\"  # fast with turbo"
+    echo "  ./generate.sh --xl \"photorealistic portrait\"  # best quality"
     exit 0
 fi
 
@@ -50,7 +50,7 @@ fi
 
 # Run the appropriate service
 if [[ "$USE_SDXL" == true ]]; then
-    echo "Using SDXL-Turbo (fast mode)..."
+    echo "Using SDXL + Refiner (best quality)..."
     docker compose run --rm sdxl "$@" -o "/app/output/$(basename "${2:-output_xl.png}")"
 else
     echo "Using Stable Diffusion 1.5..."

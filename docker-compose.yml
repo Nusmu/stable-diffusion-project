@@ -6,6 +6,7 @@ services:
     environment:
       - NVIDIA_VISIBLE_DEVICES=all
       - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+      - HF_TOKEN=${HF_TOKEN}
     volumes:
       # Output images to host
       - ./output:/app/output
@@ -22,7 +23,7 @@ services:
     stdin_open: true
     tty: true
 
-  # SDXL-Turbo variant (fast, needs ~8GB VRAM)
+  # SDXL base + refiner (best quality, needs ~14GB VRAM)
   sdxl:
     build: .
     image: stable-diffusion:latest
@@ -30,6 +31,7 @@ services:
     environment:
       - NVIDIA_VISIBLE_DEVICES=all
       - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+      - HF_TOKEN=${HF_TOKEN}
     volumes:
       - ./output:/app/output
       - sd-models:/root/.cache/huggingface
