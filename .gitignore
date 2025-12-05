@@ -10,6 +10,7 @@ env/
 ENV/
 
 # Generated images
+output/
 *.png
 *.jpg
 *.jpeg
